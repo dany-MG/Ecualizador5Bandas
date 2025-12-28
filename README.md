@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Astro Starter Kit: Minimal
 
 ```sh
@@ -41,3 +42,7 @@ All commands are run from the root of the project, from a terminal:
 ## 👀 Want to learn more?
 
 Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+=======
+# Ecualizador5Bandas
+Ecualizador de 5 Bandas realizado para la materia de Matemáticas Avanzadas para la Ingeniería
+>>>>>>> c47fde56ae2ad01f9d6ef6a75d1de2051fa8eb4c
