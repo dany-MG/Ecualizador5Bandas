@@ -2,7 +2,7 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.io import wavfile
-from fastapi import FastAPI, UploadFile, File, Form
+from fastapi import FastAPI, UploadFile, File, Formm, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import json
@@ -89,6 +89,7 @@ def generate_spectrogram(data_norm, rate, output_path):
 
 @app.post("/process")
 async def process_audio(
+    request: Request,
     song: UploadFile = File(...),
     voice: UploadFile = File(...),
     gains: str = Form(...)
@@ -133,12 +134,13 @@ async def process_audio(
     # El archivo en disco es el mismo, pero la URL cambia (?t=1708...)
     # esto obliga al navegador a recargar la imagen.
     timestamp = int(time.time())
+    base_url = str(request.base_url).rstrip("/")
 
     return {
         "status": "success",
         "images": {
-           "song": f"http://localhost:8000/output/{song_out_name}?t={timestamp}",
-           "voice": f"http://localhost:8000/output/{voice_out_name}?t={timestamp}"
+           "song": f"{base_url}/output/{song_out_name}?t={timestamp}",
+           "voice": f"{base_url}/output/{voice_out_name}?t={timestamp}"
         }
     }
 
