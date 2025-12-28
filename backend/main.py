@@ -19,9 +19,15 @@ OUTPUT_DIR = BASE_DIR / "output"
 TEMP_DIR.mkdir(exist_ok=True)
 OUTPUT_DIR.mkdir(exist_ok=True)
 
+origins = [
+    "http://localhost:4321",              # Para cuando pruebas en tu PC
+    "http://localhost:3000",              # Por si usas otro puerto local
+    "https://ecualizador5-bandas.vercel.app"  # <--- ¡TU URL DE VERCEL! (Sin barra al final)
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
