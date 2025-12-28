@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import json
 from pathlib import Path
-import time # <--- Usaremos el tiempo como "versión" para engañar al caché
+import time
 
 app = FastAPI()
 
@@ -19,10 +19,11 @@ OUTPUT_DIR = BASE_DIR / "output"
 TEMP_DIR.mkdir(exist_ok=True)
 OUTPUT_DIR.mkdir(exist_ok=True)
 
+# Configuración de seguridad (CORS)
 origins = [
-    "http://localhost:4321",              # Para cuando pruebas en tu PC
-    "http://localhost:3000",              # Por si usas otro puerto local
-    "https://ecualizador5-bandas.vercel.app"  # <--- ¡TU URL DE VERCEL! (Sin barra al final)
+    "http://localhost:4321",
+    "http://localhost:3000",
+    "https://ecualizador5-bandas.vercel.app" 
 ]
 
 app.add_middleware(
@@ -35,7 +36,7 @@ app.add_middleware(
 
 app.mount("/output", StaticFiles(directory=str(OUTPUT_DIR)), name="output")
 
-# --- FUNCIONES ---
+# --- FUNCIONES AUXILIARES ---
 
 def normalize_audio(data):
     if data.dtype == np.int16:
@@ -80,20 +81,28 @@ def apply_fft_equalizer(data_norm, rate, gains):
 
 def generate_spectrogram(data_norm, rate, output_path):
     plt.figure(figsize=(12, 4))
-    
-    # Configuración "estilo WaveSurfer"
-    plt.specgram(data_norm, NFFT=1024, Fs=rate, noverlap=512, cmap='inferno', vmin=-90, vmax=0)
-    plt.yscale('symlog', linthresh=700)
-    plt.ylim(20, rate/2)
+    # Renderizado 100% sin bordes
+    plt.axes([0, 0, 1, 1], frameon=False)
     plt.axis('off')
     
-    # Sobreescribimos el archivo si existe
-    plt.savefig(output_path, bbox_inches='tight', pad_inches=0, transparent=True)
+    plt.specgram(data_norm, NFFT=1024, Fs=rate, noverlap=512, cmap='inferno', vmin=-90, vmax=0)
+    plt.yscale('symlog', linthresh=700)
+    plt.ylim(20, 4000) # Límite igual al Frontend
+    
+    plt.savefig(output_path, bbox_inches=None, pad_inches=0, transparent=True)
     plt.close()
 
-# --- ENDPOINT ---
+# --- ENDPOINTS (RUTAS) ---
 
+# 1. RUTA DE BIENVENIDA (GET /)
+# Esta es la que responde "Hola" cuando entras al link de Render
 @app.get("/")
+def read_root():
+    return {"mensaje": "¡El Backend está VIVO y funcionando! 🚀"}
+
+# 2. RUTA DE PROCESAMIENTO (POST /process)
+# Esta es la que usa tu página web para enviar los audios
+@app.post("/process") 
 async def process_audio(
     request: Request,
     song: UploadFile = File(...),
@@ -103,9 +112,7 @@ async def process_audio(
     print("📥 Recibiendo solicitud...")
     eq_gains = json.loads(gains)
 
-    print("📈 Ganancias recibidas:", eq_gains)
-    
-    # 1. Guardar archivos (Sobreescribimos siempre los mismos 2 archivos temporales)
+    # ... (Lógica de guardado y procesamiento) ...
     song_path = TEMP_DIR / "temp_song.wav"
     voice_path = TEMP_DIR / "temp_voice.wav"
 
@@ -123,22 +130,15 @@ async def process_audio(
     audio_s_norm = normalize_audio(data_s)
     audio_v_norm = normalize_audio(data_v)
 
-    # 2. Procesar
-    print("🎛️ Procesando...")
     processed_song = apply_fft_equalizer(audio_s_norm, rate_s, eq_gains)
     processed_voice = apply_fft_equalizer(audio_v_norm, rate_v, eq_gains)
 
-    # 3. NOMBRES ESTÁTICOS (Sobreescribimos siempre la misma imagen)
     song_out_name = "spec_song_latest.png"
     voice_out_name = "spec_voice_latest.png"
     
-    print(f"🎨 Actualizando imágenes: {song_out_name}")
     generate_spectrogram(processed_song, rate_s, OUTPUT_DIR / song_out_name)
     generate_spectrogram(processed_voice, rate_v, OUTPUT_DIR / voice_out_name)
 
-    # 4. EL TRUCO: Agregamos un timestamp a la URL
-    # El archivo en disco es el mismo, pero la URL cambia (?t=1708...)
-    # esto obliga al navegador a recargar la imagen.
     timestamp = int(time.time())
     base_url = str(request.base_url).rstrip("/")
 
