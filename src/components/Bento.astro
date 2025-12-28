@@ -86,7 +86,7 @@ import Espectograma from "./Espectograma.astro";
   const btnText = document.getElementById("btn-text-global");
   const loadingIcon = document.getElementById("loading-icon-global");
 
-  // Inicializar variables globales por si acaso
+  // Inicializar variables globales
   window.MAPI_FILES = window.MAPI_FILES || {};
   window.EQ_GAINS = window.EQ_GAINS || {};
 
@@ -111,29 +111,48 @@ import Espectograma from "./Espectograma.astro";
         const formData = new FormData();
         formData.append("song", songFile);
         formData.append("voice", voiceFile);
-        // Si el usuario no tocó los sliders, EQ_GAINS podría estar vacío, enviamos {}
         formData.append("gains", JSON.stringify(window.EQ_GAINS || {}));
-        const API_URL = import.meta.env.PUBLIC_API_URL;
+
+        // --- CORRECCIÓN AQUÍ ---
+        // 1. Obtenemos la URL base (Render)
+        const BASE_URL = import.meta.env.PUBLIC_API_URL;
+
+        // 2. Imprimimos en consola para ver qué está pasando (F12)
+        console.log("🌍 Intentando conectar a:", BASE_URL);
+
+        if (!BASE_URL) {
+          throw new Error("La variable PUBLIC_API_URL está vacía o no existe.");
+        }
+
+        // 3. ¡IMPORTANTE! Agregamos "/process" al final
+        const endpoint = `${BASE_URL}/process`;
+
+        console.log("🚀 Enviando datos a:", endpoint);
+
         // D. Enviar a Python
-        const response = await fetch(API_URL, {
+        const response = await fetch(endpoint, {
           method: "POST",
           body: formData,
         });
 
-        if (!response.ok) throw new Error("Error en el servidor Python");
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(
+            `Error del servidor (${response.status}): ${errorText}`
+          );
+        }
 
         const data = await response.json();
 
         if (data.status === "success") {
-          console.log("✅ Éxito:", data.images);
+          console.log("✅ Imágenes recibidas:", data.images);
 
-          // E. Actualizar Espectrogramas (Disparar eventos a Ondas.astro)
+          // E. Actualizar Espectrogramas
           document.dispatchEvent(
             new CustomEvent("spectrogram-generated", {
               detail: { targetId: "song", imageUrl: data.images.song },
             })
           );
-
           document.dispatchEvent(
             new CustomEvent("spectrogram-generated", {
               detail: { targetId: "voice", imageUrl: data.images.voice },
@@ -141,8 +160,8 @@ import Espectograma from "./Espectograma.astro";
           );
         }
       } catch (error) {
-        console.error("Error:", error);
-        alert("❌ Error: Revisa que 'main.py' esté corriendo en la terminal.");
+        console.error("❌ Error grave:", error);
+        alert(`❌ Error: ${error.message}`);
       } finally {
         // F. Restaurar botón
         btnProcess.disabled = false;
