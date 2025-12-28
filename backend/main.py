@@ -93,7 +93,7 @@ def generate_spectrogram(data_norm, rate, output_path):
 
 # --- ENDPOINT ---
 
-@app.post("/process")
+@app.post("/")
 async def process_audio(
     request: Request,
     song: UploadFile = File(...),
