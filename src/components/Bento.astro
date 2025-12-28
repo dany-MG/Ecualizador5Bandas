@@ -113,9 +113,9 @@ import Espectograma from "./Espectograma.astro";
         formData.append("voice", voiceFile);
         // Si el usuario no tocó los sliders, EQ_GAINS podría estar vacío, enviamos {}
         formData.append("gains", JSON.stringify(window.EQ_GAINS || {}));
-
+        const API_URL = import.meta.env.PUBLIC_API_URL;
         // D. Enviar a Python
-        const response = await fetch("http://localhost:8000/process", {
+        const response = await fetch(API_URL, {
           method: "POST",
           body: formData,
         });
