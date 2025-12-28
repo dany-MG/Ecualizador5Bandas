@@ -1,0 +1,254 @@
+---
+import Ondas from "./Ondas.astro";
+
+interface Props {
+  class?: string;
+  type: "song" | "voice";
+}
+const { type } = Astro.props;
+
+const manualColor = type === "voice" ? "rgb(6, 182, 212)" : "rgb(217, 70, 239)";
+---
+
+<div
+  id={`card-${type}`}
+  class="w-full h-full relative bg-slate-900/40 border border-slate-700/50 rounded-xl overflow-hidden group hover:border-slate-500/50 transition-all duration-300"
+>
+  <input type="file" id={`input-${type}`} accept=".wav" class="hidden" />
+
+  <div
+    id={`dropzone-${type}`}
+    class="absolute inset-0 z-20 flex flex-col items-center justify-center transition-colors duration-200"
+  >
+    <div
+      id={`msg-empty-${type}`}
+      class="flex flex-col items-center gap-3 transition-opacity duration-300 pointer-events-none"
+    >
+      <div class="p-3 rounded-full bg-slate-800/50 border border-slate-700">
+        <svg
+          class="w-6 h-6 text-slate-400"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          ><path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+          ></path></svg
+        >
+      </div>
+      <div class="text-center">
+        <p class="text-1xl font-bold text-slate-300 tracking-widest uppercase">
+          Arrastra tu .WAV
+        </p>
+      </div>
+      <button
+        id={`btn-select-${type}`}
+        class="mt-1 px-4 py-1.5 bg-cyan-600/20 hover:bg-cyan-600/40 border border-cyan-500/50 text-cyan-400 text-md rounded-md transition-all z-30 font-semibold pointer-events-auto"
+      >
+        Seleccionar Archivo
+      </button>
+    </div>
+
+    <div
+      id={`msg-ready-${type}`}
+      class="hidden flex-row lg:flex-col lg:mb-7 items-center justify-center gap-4 lg:gap-4 mt-auto mb-3 z-30"
+    >
+      <div
+        class="flex items-center gap-2 bg-black/60 px-3 py-1 rounded-full border border-slate-700 backdrop-blur-sm pointer-events-none"
+      >
+        <div
+          class="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_10px_#10b981] animate-pulse"
+        >
+        </div>
+        <span
+          id={`filename-${type}`}
+          class="text-[10px] text-slate-300 truncate max-w-37.5 md:max-w-xs"
+        ></span>
+      </div>
+
+      <button
+        id={`btn-change-${type}`}
+        class="text-[10px] text-slate-500 hover:text-white underline decoration-dotted underline-offset-2 transition-colors cursor-pointer pointer-events-auto"
+      >
+        Cambiar archivo
+      </button>
+    </div>
+
+    <div
+      id={`drag-overlay-${type}`}
+      class="absolute inset-0 border-2 border-dashed border-cyan-400/0 transition-all duration-200 pointer-events-none m-1 rounded-lg"
+    >
+    </div>
+  </div>
+
+  <Ondas type={type} color={manualColor} />
+
+  <div
+    id={`controls-${type}`}
+    class="hidden absolute bottom-2 right-2 z-30 pointer-events-auto"
+  >
+    <button
+      id={`btn-play-${type}`}
+      class="p-2 bg-slate-800 hover:bg-slate-700 text-white rounded-full border border-slate-600 shadow-lg transition-all active:scale-95"
+    >
+      <svg class="w-4 h-4 js-icon-play" fill="currentColor" viewBox="0 0 24 24"
+        ><path d="M8 5v14l11-7z"></path></svg
+      >
+      <svg
+        class="w-4 h-4 js-icon-pause hidden"
+        fill="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"></path>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<script define:vars={{ type }}>
+  // Referencias DOM
+  const card = document.getElementById(`card-${type}`); // Contenedor Principal
+  const dropzone = document.getElementById(`dropzone-${type}`);
+  const fileInput = document.getElementById(`input-${type}`);
+  const overlay = document.getElementById(`drag-overlay-${type}`);
+
+  const msgEmpty = document.getElementById(`msg-empty-${type}`);
+  const msgReady = document.getElementById(`msg-ready-${type}`);
+  const filenameLabel = document.getElementById(`filename-${type}`);
+  const controls = document.getElementById(`controls-${type}`);
+
+  const btnSelect = document.getElementById(`btn-select-${type}`);
+  const btnChange = document.getElementById(`btn-change-${type}`);
+  const btnPlay = document.getElementById(`btn-play-${type}`);
+
+  window.MAPI_FILES = window.MAPI_FILES || {};
+
+  // --- 1. LÓGICA DE INTERACCIÓN ---
+
+  // Botones de selección manual
+  const triggerFileSelect = (e) => {
+    e.stopPropagation();
+    fileInput.click();
+  };
+  btnSelect.addEventListener("click", triggerFileSelect);
+  btnChange.addEventListener("click", triggerFileSelect);
+
+  // Input Change
+  fileInput.addEventListener("change", (e) => {
+    const files = e.target.files;
+    if (files.length > 0) showFile(files[0]);
+  });
+
+  // Botón Play
+  btnPlay.addEventListener("click", (e) => {
+    e.stopPropagation();
+
+    const iconPlay = btnPlay.querySelector(".js-icon-play");
+    const iconPause = btnPlay.querySelector(".js-icon-pause");
+
+    if (!iconPlay.classList.contains("hidden")) {
+      iconPlay.classList.add("hidden");
+      iconPause.classList.remove("hidden");
+    } else {
+      iconPlay.classList.remove("hidden");
+      iconPause.classList.add("hidden");
+    }
+    document.dispatchEvent(
+      new CustomEvent("toggle-play", { detail: { id: type } })
+    );
+  });
+
+  // --- 2. LÓGICA DE DRAG & DROP INTELIGENTE ---
+
+  // Usamos el CARD principal para detectar si entramos con un archivo
+  card.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Al arrastrar, "despertamos" la dropzone y le ponemos estilos
+    dropzone.classList.remove("pointer-events-none"); // Habilitar Drop
+    dropzone.classList.add("bg-cyan-900/20");
+    overlay.classList.remove("border-transparent");
+    overlay.classList.add("border-cyan-500");
+  });
+
+  card.addEventListener("dragleave", (e) => {
+    e.preventDefault();
+
+    // Si salimos del card, quitamos estilos.
+    // PERO solo volvemos a pointer-events-none si YA hay un archivo cargado.
+    // Si está vacío, debe seguir activo.
+    const isFileLoaded = !msgEmpty.classList.contains("flex"); // Chequeo rápido de estado
+
+    dropzone.classList.remove("bg-cyan-900/20");
+    overlay.classList.add("border-transparent");
+    overlay.classList.remove("border-cyan-500");
+
+    if (isFileLoaded) {
+      dropzone.classList.add("pointer-events-none"); // Volver a modo fantasma
+    }
+  });
+
+  card.addEventListener("drop", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Limpieza visual
+    dropzone.classList.remove("bg-cyan-900/20");
+    overlay.classList.add("border-transparent");
+    overlay.classList.remove("border-cyan-500");
+
+    const files = e.dataTransfer.files;
+    if (files.length > 0) showFile(files[0]);
+    else {
+      // Si soltaron algo que no es archivo (texto, etc), volvemos al estado correcto
+      const isFileLoaded = !msgEmpty.classList.contains("flex");
+      if (isFileLoaded) dropzone.classList.add("pointer-events-none");
+    }
+  });
+
+  // --- 3. FUNCIÓN DE CARGA ---
+  function showFile(file) {
+    if (!file) return;
+    //TODO: Cambiar alerts por sweet alerts o similar
+    if (!file.name.toLowerCase().endsWith(".wav")) {
+      alert("⚠️ Solo archivos .wav");
+      // Restaurar estado si falló
+      const isFileLoaded = !msgEmpty.classList.contains("flex");
+      if (isFileLoaded) dropzone.classList.add("pointer-events-none");
+      return;
+    }
+
+    // Actualizar UI
+    msgEmpty.classList.remove("flex");
+    msgEmpty.classList.add("hidden");
+
+    msgReady.classList.remove("hidden");
+    msgReady.classList.add("flex");
+
+    controls.classList.remove("hidden");
+    controls.classList.add("block");
+
+    const iconPlay = btnPlay.querySelector(".js-icon-play");
+    const iconPause = btnPlay.querySelector(".js-icon-pause");
+    if (iconPlay && iconPause) {
+      iconPlay.classList.remove("hidden"); // Mostrar Play
+      iconPause.classList.add("hidden"); // Ocultar Pausa
+    }
+
+    filenameLabel.innerText = file.name;
+
+    dropzone.classList.add("pointer-events-none");
+
+    // Guardar y notificar
+    window.MAPI_FILES[type] = file;
+
+    document.dispatchEvent(
+      new CustomEvent("file-loaded", {
+        detail: { id: type, file: file },
+      })
+    );
+  }
+</script>

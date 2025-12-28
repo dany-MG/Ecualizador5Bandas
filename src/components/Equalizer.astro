@@ -1,0 +1,154 @@
+---
+interface Props {
+  bands?: string[];
+}
+const { bands = ["60Hz", "250Hz", "1kHz", "4kHz", "16kHz"] } = Astro.props;
+---
+
+<div class="w-full h-full flex flex-col items-center justify-center p-4">
+  <div class="w-full flex justify-center items-center mb-2 px-2 opacity-70">
+    <span
+      class="text-center text-xl md:text-2xl text-cyan-400 tracking-widest uppercase font-bold"
+    >
+      Bandas de Frecuencia
+    </span>
+  </div>
+
+  <div
+    class="w-full flex-1 flex items-end justify-start md:justify-center gap-6 overflow-x-auto pb-4 px-4 scrollbar-hide snap-x"
+  >
+    {
+      bands.map((band, index) => (
+        <div class="group flex flex-col items-center h-64 w-16 shrink-0 gap-3 relative snap-center">
+          <span
+            id={`val-${index}`}
+            class="absolute top-2 text-xs text-cyan-300"
+          >
+            0dB
+          </span>
+
+          <div class="relative flex-1 w-full flex justify-center items-center">
+            <input
+              type="range"
+              min="-12"
+              max="12"
+              value="0"
+              step="0.1"
+              data-index={index}
+              data-freq={band}
+              class="fader appearance-none bg-transparent cursor-pointer"
+            />
+          </div>
+
+          <span class="text-sm text-slate-500 font-bold tracking-tighter uppercase group-hover:text-slate-300 transition-colors">
+            {band}
+          </span>
+
+          <div class="w-full h-px bg-slate-800" />
+        </div>
+      ))
+    }
+  </div>
+</div>
+
+<style>
+  /* Ocultar barra de scroll */
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* Estilos del slider vertical */
+  .fader {
+    width: 150px;
+    height: 4px;
+    transform: rotate(-90deg);
+    border-radius: 999px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: #1e293b;
+    outline: none;
+    transition: background 0.2s;
+  }
+  .fader::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 4px;
+    border-radius: 999px;
+    background: #334155;
+    border: 1px solid #0f172a;
+  }
+  .fader::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #06b6d4;
+    box-shadow:
+      0 0 10px rgba(6, 182, 212, 0.5),
+      inset 0 0 4px rgba(255, 255, 255, 0.8);
+    cursor: grab;
+    margin-top: -6px;
+    transition:
+      transform 0.1s,
+      box-shadow 0.2s;
+  }
+  .fader:active::-webkit-slider-thumb {
+    transform: scale(1.2);
+    box-shadow:
+      0 0 15px rgba(6, 182, 212, 0.8),
+      inset 0 0 4px rgba(255, 255, 255, 1);
+    cursor: grabbing;
+    background: #22d3ee;
+  }
+  /* Firefox */
+  .fader::-moz-range-track {
+    width: 100%;
+    height: 4px;
+    background: #334155;
+    border-radius: 999px;
+  }
+  .fader::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border: none;
+    border-radius: 50%;
+    background: #06b6d4;
+    cursor: grab;
+  }
+</style>
+
+<script define:vars={{ bands }}>
+  const faders = document.querySelectorAll(".fader");
+  // @ts-ignore
+  window.EQ_GAINS = {};
+  faders.forEach((fader, index) => {
+    const freq = bands[index];
+    // @ts-ignore
+    window.EQ_GAINS[freq] = parseFloat(fader.value);
+
+    fader.addEventListener("input", (e) => {
+      const target = e.target;
+      const val = target.value;
+      const label = document.getElementById(`val-${index}`);
+      if (label) {
+        const sign = val > 0 ? "+" : "";
+        label.textContent = `${sign}${val}dB`;
+        // @ts-ignore
+        clearTimeout(target.timer);
+        // @ts-ignore
+      }
+      // @ts-ignore
+      window.EQ_GAINS[freq] = parseFloat(val);
+
+      const event = new CustomEvent("eq-change", {
+        // @ts-ignore
+        detail: { freq, gain: val, allGains: window.EQ_GAINS },
+      });
+      document.dispatchEvent(event);
+    });
+  });
+</script>

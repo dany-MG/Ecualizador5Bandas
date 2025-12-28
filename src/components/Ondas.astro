@@ -1,0 +1,226 @@
+---
+interface Props {
+  type: string;
+  color: string;
+}
+const { type, color } = Astro.props;
+---
+
+<div
+  class="wavesurfer-component absolute inset-3 z-10 opacity-80 flex flex-col justify-center"
+  data-id={type}
+  data-color={color}
+>
+  <div class="wave-main-container w-full"></div>
+  <div class="wave-minimap-container w-full mt-5"></div>
+</div>
+
+<script>
+  import WaveSurfer from "wavesurfer.js";
+  import Minimap from "wavesurfer.js/dist/plugins/minimap.esm.js";
+  import Hover from "wavesurfer.js/dist/plugins/hover.esm.js";
+  import Spectrogram from "wavesurfer.js/dist/plugins/spectrogram.esm.js";
+
+  let globalAudioContext = null;
+
+  function waitForElement(id) {
+    return new Promise((resolve) => {
+      const el = document.getElementById(id);
+      if (el) return resolve(el);
+      const interval = setInterval(() => {
+        const el = document.getElementById(id);
+        if (el) {
+          clearInterval(interval);
+          resolve(el);
+        }
+      }, 50);
+    });
+  }
+
+  async function initWaveSurferComponent(wrapperElement) {
+    const id = wrapperElement.dataset.id;
+    const color = wrapperElement.dataset.color;
+
+    const mainContainer = wrapperElement.querySelector(".wave-main-container");
+    const minimapContainer = wrapperElement.querySelector(
+      ".wave-minimap-container"
+    );
+
+    // Buscamos el destino una sola vez y lo guardamos en memoria
+    // @ts-ignore
+    const spectrogramTarget = await waitForElement(`spectrogram-ws-${id}`);
+    const placeholderTarget = document.getElementById(
+      `spectrogram-placeholder-${id}`
+    );
+
+    let wavesurfer = null;
+    let eqFilters = [];
+    let sourceNode = null;
+
+    // Listener de EQ
+    document.addEventListener("eq-change", (e) => {
+      // @ts-ignore
+      const { freq, gain } = e.detail;
+      if (eqFilters.length > 0) {
+        let index = -1;
+        if (freq === "60Hz") index = 0;
+        else if (freq === "250Hz") index = 1;
+        else if (freq === "1kHz") index = 2;
+        else if (freq === "4kHz") index = 3;
+        else if (freq === "16kHz") index = 4;
+        if (index !== -1 && eqFilters[index])
+          eqFilters[index].gain.value = parseFloat(gain);
+      }
+    });
+
+    // --- EVENTO DE CARGA DE ARCHIVO ---
+    document.addEventListener("file-loaded", async (e) => {
+      // @ts-ignore
+      const detail = e.detail;
+
+      if (detail.id === id) {
+        // 1. LIMPIEZA TOTAL
+        if (wavesurfer) {
+          wavesurfer.destroy(); // Esto mata al plugin viejo
+          wavesurfer = null;
+        }
+
+        // Limpiamos visualmente el contenedor del espectrograma viejo
+        if (spectrogramTarget) spectrogramTarget.innerHTML = "";
+        if (placeholderTarget) placeholderTarget.style.display = "none";
+
+        // @ts-ignore
+        if (!globalAudioContext) {
+          // @ts-ignore
+          globalAudioContext = new (
+            window.AudioContext || window.webkitAudioContext
+          )();
+        }
+
+        const specPlugin = Spectrogram.create({
+          labels: true,
+          height: 450,
+          splitChannels: false,
+          useWebWorker: false,
+          fftSamples: 512,
+          scale: "mel",
+          frequencyMax: 4000,
+          frequencyMin: 30,
+          labelsBackground: "rgba(0, 0, 0, 0.1)",
+          labelsColor: "#fff",
+          colorMap: "roseus",
+        });
+
+        // 3. Crear WaveSurfer
+        wavesurfer = WaveSurfer.create({
+          container: mainContainer,
+          waveColor: "rgb(100, 116, 139)",
+          progressColor: color,
+          height: 100,
+          barWidth: NaN,
+          barGap: NaN,
+          cursorColor: "white",
+          normalize: false,
+          interact: true,
+          dragToSeek: true,
+          plugins: [
+            Minimap.create({
+              container: minimapContainer,
+              height: 20,
+              waveColor: "rgba(255, 255, 255, 0.2)",
+              progressColor: "rgba(255, 255, 255, 0.5)",
+              cursorColor: "transparent",
+              overlayColor: "rgba(0, 0, 0, 0)",
+            }),
+            Hover.create({
+              lineColor: "#11012CFF",
+              lineWidth: 2,
+              labelBackground: "#1e293b",
+              labelColor: "#fff",
+              labelSize: "11px",
+            }),
+            specPlugin,
+          ],
+        });
+
+        wavesurfer.on("ready", () => {
+          // @ts-ignore
+          const specWrapper = specPlugin.wrapper;
+
+          if (specWrapper && spectrogramTarget) {
+            // Asegurar que está vacío antes de pegar lo nuevo
+            spectrogramTarget.innerHTML = "";
+            spectrogramTarget.appendChild(specWrapper);
+
+            specWrapper.style.width = "100%";
+            specWrapper.style.height = "100%";
+            specWrapper.style.position = "relative";
+            specWrapper.style.objectFit = "cover";
+          }
+
+          // Conexión de Audio (EQ)
+          const mediaElement = wavesurfer.getMediaElement();
+          // @ts-ignore
+          sourceNode =
+            globalAudioContext.createMediaElementSource(mediaElement);
+
+          const bands = [60, 250, 1000, 4000, 16000];
+          // @ts-ignore
+          eqFilters = bands.map((band) => {
+            // @ts-ignore
+            const filter = globalAudioContext.createBiquadFilter();
+            if (band === 60) filter.type = "lowshelf";
+            else if (band === 16000) filter.type = "highshelf";
+            else filter.type = "peaking";
+            filter.frequency.value = band;
+            filter.Q.value = 1;
+            filter.gain.value = 0;
+            // @ts-ignore
+            return filter;
+          });
+
+          const equalizer = eqFilters.reduce((prev, curr) => {
+            prev.connect(curr);
+            return curr;
+          }, sourceNode);
+
+          // @ts-ignore
+          equalizer.connect(globalAudioContext.destination);
+        });
+
+        wavesurfer.on("play", () => {
+          // @ts-ignore
+          if (globalAudioContext.state === "suspended")
+            globalAudioContext.resume();
+        });
+
+        const url = URL.createObjectURL(detail.file);
+        await wavesurfer.load(url);
+      }
+    });
+
+    document.addEventListener("toggle-play", (e) => {
+      // @ts-ignore
+      const detail = e.detail;
+      if (detail.id === id && wavesurfer) wavesurfer.playPause();
+    });
+
+    document.addEventListener("spectrogram-generated", (e) => {
+      // @ts-ignore
+      const { targetId, imageUrl } = e.detail;
+      if (targetId === id) {
+        const wsElem = document.getElementById(`spectrogram-ws-${id}`);
+        const imgElem = document.getElementById(`spectrogram-py-${id}`);
+        if (imgElem) {
+          // @ts-ignore
+          imgElem.src = imageUrl;
+          imgElem.classList.remove("hidden");
+        }
+      }
+    });
+  }
+
+  const components = document.querySelectorAll(".wavesurfer-component");
+  // @ts-ignore
+  components.forEach(initWaveSurferComponent);
+</script>

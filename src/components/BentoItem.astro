@@ -1,0 +1,23 @@
+---
+interface Props {
+  class?: string;
+  title?: string;
+}
+const { title } = Astro.props;
+---
+
+<article
+  class={`
+        ${Astro.props.class}
+        text-white
+        relative rounded-xl overflow-hidden
+        backdrop-blur-md
+        border border-white/10
+        shadow-inner shadow-white/10
+        p-0 flex flex-col
+    `}
+>
+  <div class="grow w-full relative">
+    <slot />
+  </div>
+</article>

@@ -1,0 +1,154 @@
+---
+import BentoItem from "./BentoItem.astro";
+import DragDrop from "./DragDrop.astro";
+import Equalizer from "./Equalizer.astro";
+import Espectograma from "./Espectograma.astro";
+---
+
+<section
+  class="w-full min-h-dvh p-4 md:p-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-11 auto-rows-auto lg:auto-rows-[25rem] gap-4 md:gap-6 mx-auto"
+>
+  <div
+    class="col-span-1 md:col-span-2 lg:col-span-4 lg:row-span-2 flex flex-col gap-4 h-125 lg:h-auto md:h-160"
+  >
+    <BentoItem
+      title=""
+      class="flex-1 text-center items-center flex justify-center overflow-hidden"
+    >
+      <DragDrop type="song" />
+    </BentoItem>
+    <BentoItem
+      title="Espectrograma 1"
+      class="flex-1 items-center flex justify-center overflow-hidden"
+    >
+      <Espectograma id="song" />
+    </BentoItem>
+  </div>
+
+  <div
+    class="col-span-1 md:col-span-2 lg:col-span-3 lg:row-span-2 flex flex-col items-center justify-center gap-6 py-4"
+  >
+    <BentoItem
+      title="Bandas de Ganancia"
+      class="w-full h-88 lg:h-auto overflow-x-auto flex flex-col justify-center items-center md:overflow-x-auto"
+    >
+      <Equalizer bands={["60Hz", "250Hz", "1kHz", "4kHz", "16kHz"]} />
+    </BentoItem>
+
+    <button
+      id="btn-process-global"
+      class="w-full max-w-xs px-6 py-4 bg-cyan-600/20 hover:bg-cyan-500/30 border border-cyan-500/50 hover:border-cyan-400 text-cyan-300 rounded-md font-bold tracking-widest transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(6,182,212,0.1)] hover:shadow-[0_0_30px_rgba(6,182,212,0.2)]"
+    >
+      <span id="btn-text-global">PROCESAR AUDIOS</span>
+      <svg
+        id="loading-icon-global"
+        class="hidden animate-spin h-5 w-5 text-cyan-300"
+        xmlns="http://www.w3.org/2000/svg"
+        fill="none"
+        viewBox="0 0 24 24"
+      >
+        <circle
+          class="opacity-25"
+          cx="12"
+          cy="12"
+          r="10"
+          stroke="currentColor"
+          stroke-width="4"></circle>
+        <path
+          class="opacity-75"
+          fill="currentColor"
+          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+        ></path>
+      </svg>
+    </button>
+  </div>
+
+  <div
+    class="col-span-1 md:col-span-2 lg:col-span-4 lg:row-span-2 flex flex-col gap-4 h-125 lg:h-auto md:h-160"
+  >
+    <BentoItem
+      title="Audio 2"
+      class="flex-1 items-center flex justify-center overflow-hidden"
+    >
+      <DragDrop type="voice" />
+    </BentoItem>
+    <BentoItem
+      title="Espectrograma 2"
+      class="flex-1 items-center flex justify-center overflow-hidden"
+    >
+      <Espectograma id="voice" />
+    </BentoItem>
+  </div>
+</section>
+
+<script>
+  const btnProcess = document.getElementById("btn-process-global");
+  const btnText = document.getElementById("btn-text-global");
+  const loadingIcon = document.getElementById("loading-icon-global");
+
+  // Inicializar variables globales por si acaso
+  window.MAPI_FILES = window.MAPI_FILES || {};
+  window.EQ_GAINS = window.EQ_GAINS || {};
+
+  if (btnProcess) {
+    btnProcess.addEventListener("click", async () => {
+      // A. Validar archivos
+      const songFile = window.MAPI_FILES["song"];
+      const voiceFile = window.MAPI_FILES["voice"];
+
+      if (!songFile || !voiceFile) {
+        alert("⚠️ Por favor carga ambos archivos de audio primero.");
+        return;
+      }
+
+      // B. Activar estado de carga
+      btnProcess.disabled = true;
+      btnText.innerText = "PROCESANDO...";
+      loadingIcon.classList.remove("hidden");
+
+      try {
+        // C. Preparar FormData
+        const formData = new FormData();
+        formData.append("song", songFile);
+        formData.append("voice", voiceFile);
+        // Si el usuario no tocó los sliders, EQ_GAINS podría estar vacío, enviamos {}
+        formData.append("gains", JSON.stringify(window.EQ_GAINS || {}));
+
+        // D. Enviar a Python
+        const response = await fetch("http://localhost:8000/process", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!response.ok) throw new Error("Error en el servidor Python");
+
+        const data = await response.json();
+
+        if (data.status === "success") {
+          console.log("✅ Éxito:", data.images);
+
+          // E. Actualizar Espectrogramas (Disparar eventos a Ondas.astro)
+          document.dispatchEvent(
+            new CustomEvent("spectrogram-generated", {
+              detail: { targetId: "song", imageUrl: data.images.song },
+            })
+          );
+
+          document.dispatchEvent(
+            new CustomEvent("spectrogram-generated", {
+              detail: { targetId: "voice", imageUrl: data.images.voice },
+            })
+          );
+        }
+      } catch (error) {
+        console.error("Error:", error);
+        alert("❌ Error: Revisa que 'main.py' esté corriendo en la terminal.");
+      } finally {
+        // F. Restaurar botón
+        btnProcess.disabled = false;
+        btnText.innerText = "PROCESAR AUDIOS";
+        loadingIcon.classList.add("hidden");
+      }
+    });
+  }
+</script>
