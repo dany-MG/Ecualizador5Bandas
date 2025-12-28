@@ -19,16 +19,9 @@ OUTPUT_DIR = BASE_DIR / "output"
 TEMP_DIR.mkdir(exist_ok=True)
 OUTPUT_DIR.mkdir(exist_ok=True)
 
-# Configuración de seguridad (CORS)
-origins = [
-    "http://localhost:4321",
-    "http://localhost:3000",
-    "https://ecualizador5-bandas.vercel.app" 
-]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
