@@ -111,17 +111,20 @@ import Espectograma from "./Espectograma.astro";
   });
 
   const NeonAlert = Swal.mixin({
-    background: "#0f172a",
-    color: "#cbd5e1",
+    background: "rgba(15, 23, 42, 0.9)", // slate-900 con un poco de transparencia
+    color: "#cbd5e1", // slate-300
     buttonsStyling: false,
+    backdrop: `rgba(0,0,0,0.7) backdrop-blur-sm`, // Oscurece y desenfoca más el fondo detrás de la alerta
     customClass: {
+      // AQUÍ ESTÁ LA MAGIA:
       popup:
-        "border border-cyan-500/50 shadow-[0_0_30px_rgba(6,182,212,0.3)] rounded-xl bg-slate-950",
-      title: "text-cyan-300 font-bold tracking-widest uppercase",
-      htmlContainer: "text-slate-300",
+        "border-2 border-cyan-400 shadow-[0_0_60px_rgba(6,182,212,0.5)] ring-4 ring-cyan-300/20 rounded-2xl bg-slate-950/90 backdrop-blur-md relative animate-pulse-slow", // Combinación de borde, sombra gigante, anillo y desenfoque
+      title:
+        "text-cyan-300 text-2xl font-bold tracking-widest uppercase drop-shadow-[0_0_10px_rgba(6,182,212,0.8)]", // Título brillante
+      htmlContainer: "text-slate-300 text-lg px-4",
       confirmButton:
-        "bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-6 rounded-lg transition-all shadow-lg shadow-cyan-500/20 border border-cyan-400/30",
-      icon: "border-cyan-400",
+        "bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-500 hover:to-cyan-400 text-white font-bold py-3 px-8 rounded-xl transition-all shadow-[0_0_30px_rgba(6,182,212,0.4)] border border-cyan-300/50 hover:scale-105 active:scale-95",
+      icon: "!border-cyan-400 !text-cyan-300 drop-shadow-[0_0_15px_rgba(6,182,212,0.6)]", // Icono brillante
     },
   });
 
