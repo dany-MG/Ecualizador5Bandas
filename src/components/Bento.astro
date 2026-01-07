@@ -82,6 +82,7 @@ import Espectograma from "./Espectograma.astro";
 </section>
 
 <script>
+  import Swal from "sweetalert2";
   const btnProcess = document.getElementById("btn-process-global");
   const btnText = document.getElementById("btn-text-global");
   const loadingIcon = document.getElementById("loading-icon-global");
@@ -90,6 +91,40 @@ import Espectograma from "./Espectograma.astro";
   window.MAPI_FILES = window.MAPI_FILES || {};
   window.EQ_GAINS = window.EQ_GAINS || {};
 
+  const Toast = Swal.mixin({
+    toast: true,
+    position: "top-end",
+    showConfirmButton: false,
+    timer: 3000,
+    timerProgressBar: true,
+    background: "#0f172a",
+    color: "#fff",
+    didOpen: (toast) => {
+      toast.onmouseenter = Swal.stopTimer;
+      toast.onmouseleave = Swal.resumeTimer;
+    },
+    customClass: {
+      popup:
+        "border border-cyan-500/50 shadow-[0_0_20px_rgba(6,182,212,0.2)] rounded-xl",
+      timerProgressBar: "bg-cyan-400",
+    },
+  });
+
+  const NeonAlert = Swal.mixin({
+    background: "#0f172a",
+    color: "#cbd5e1",
+    buttonsStyling: false,
+    customClass: {
+      popup:
+        "border border-cyan-500/50 shadow-[0_0_30px_rgba(6,182,212,0.3)] rounded-xl bg-slate-950",
+      title: "text-cyan-300 font-bold tracking-widest uppercase",
+      htmlContainer: "text-slate-300",
+      confirmButton:
+        "bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-6 rounded-lg transition-all shadow-lg shadow-cyan-500/20 border border-cyan-400/30",
+      icon: "border-cyan-400",
+    },
+  });
+
   if (btnProcess) {
     btnProcess.addEventListener("click", async () => {
       // A. Validar archivos
@@ -97,7 +132,12 @@ import Espectograma from "./Espectograma.astro";
       const voiceFile = window.MAPI_FILES["voice"];
 
       if (!songFile || !voiceFile) {
-        alert("⚠️ Por favor carga ambos archivos de audio primero.");
+        NeonAlert.fire({
+          icon: "warning",
+          title: "Faltan Archivos",
+          text: "⚠️ Por favor carga ambos audios antes de procesar.",
+          confirmButtonText: "ENTENDIDO",
+        });
         return;
       }
 
@@ -145,7 +185,10 @@ import Espectograma from "./Espectograma.astro";
         const data = await response.json();
 
         if (data.status === "success") {
-          console.log("✅ Imágenes recibidas:", data.images);
+          Toast.fire({
+            icon: "success",
+            title: "¡Procesamiento Exitoso!",
+          });
 
           // E. Actualizar Espectrogramas
           document.dispatchEvent(
@@ -161,7 +204,13 @@ import Espectograma from "./Espectograma.astro";
         }
       } catch (error) {
         console.error("❌ Error grave:", error);
-        alert(`❌ Error: ${error.message}`);
+        NeonAlert.fire({
+          icon: "error",
+          title: "Error de Procesamiento",
+          text: "Hubo un problema al conectar con el servidor. Revisa tu conexión.",
+          footer: `<span class="text-xs text-slate-500">${error.message}</span>`,
+          confirmButtonText: "CERRAR",
+        });
       } finally {
         // F. Restaurar botón
         btnProcess.disabled = false;
